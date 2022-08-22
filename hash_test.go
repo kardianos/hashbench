@@ -17,8 +17,10 @@ import (
 	"testing"
 
 	b2 "github.com/minio/blake2b-simd"
+	zb3 "github.com/zeebo/blake3"
 	xb2 "golang.org/x/crypto/blake2b"
 	"golang.org/x/crypto/sha3"
+	lcb3 "lukechampine.com/blake3"
 )
 
 const inputCount = 1024 * 1024
@@ -75,6 +77,8 @@ func Benchmark(b *testing.B) {
 		{name: "blake2b-512-minio", h: b2.New512()},
 		{name: "blake2b-256-x", h: justHash(xb2.New256(nil))},
 		{name: "blake2b-512-x", h: justHash(xb2.New512(nil))},
+		{name: "blake3-zeebo", h: zb3.New()},
+		{name: "blake3-lukechampine", h: lcb3.New(32, nil)},
 	}
 
 	for _, item := range list {
@@ -97,4 +101,25 @@ func TestBlake2b(t *testing.T) {
 	}
 	t.Logf("len out: %d", len(xout))
 	t.Logf("hex out: %s", hex.EncodeToString(xout))
+}
+
+func TestBlake3(t *testing.T) {
+	r := func(h hash.Hash) []byte {
+		h.Write(input)
+		return h.Sum(nil)
+	}
+	zh := zb3.New()
+	zh.Write(input)
+	mout := make([]byte, 64)
+	zh.Digest().Read(mout)
+
+	xout := r(lcb3.New(64, nil))
+
+	if bytes.Equal(mout[:], xout) == false {
+		t.Error("not equal")
+	}
+	t.Logf("len xout: %d", len(xout))
+	t.Logf("hex xout: %s", hex.EncodeToString(xout))
+	t.Logf("len mout: %d", len(mout))
+	t.Logf("hex mout: %s", hex.EncodeToString(mout[:]))
 }
